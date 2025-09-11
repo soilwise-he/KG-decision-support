@@ -1,0 +1,8 @@
+{
+  "dataset": [
+    {
+      "soil_prop": "soil pH",
+      "rdf_kg_thres": "@prefix af-x: <http://purl.allotrope.org/ontologies/property#> .\n@prefix agrontology: <http://aims.fao.org/aos/agrontology#> .\n@prefix obo: <http://purl.obolibrary.org/obo/> .\n@prefix qudt: <http://qudt.org/schema/qudt/> .\n@prefix she: <https://soilwise-he.github.io/soil-health#> .\n@prefix skos: <http://www.w3.org/2004/02/skos/core#> .\n@prefix sorelm: <http://sweetontology.net/relaMath/> .\n@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n\nshe:SoilpH a skos:Concept ;\n    agrontology:greaterThan [ agrontology:isBeneficialFor she:CropProduction ;\n            qudt:numericValue \"5.5\"^^xsd:float,\n                \"6.0\"^^xsd:float ] ;\n    agrontology:smallerThan [ agrontology:causes she:AluminiumRelease ;\n            af-x:AFX_0000408 she:AgriculturalSoils ;\n            qudt:numericValue \"4.5\"^^xsd:float ],\n        [ obo:RO_0002212 she:CropProduction ;\n            sorelm:hasInterval \"5.5-6.0\" ] ;\n    sorelm:hasLowerBound \"5\"^^xsd:int ;\n    sorelm:hasThreshold [ qudt:numericValue \"4.5\"^^xsd:float ;\n            skos:related she:AluminiumToxicity ] ;\n    sorelm:hasUpperBound [ obo:RO_0002212 she:CropYields ;\n            obo:RO_0002213 she:Aluminium,\n                she:Manganese ;\n            qudt:numericValue \"4.5\"^^xsd:float ] ;\n    skos:altLabel \"soil pH value\"@en ;\n    skos:prefLabel \"soil pH\"@en ."
+    }
+  ]
+}

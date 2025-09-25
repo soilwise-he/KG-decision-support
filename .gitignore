@@ -1,5 +1,5 @@
-# large files
-crop_maps/crop_map_Netherlands_new_legend_final_50pc_reduced.tif
+# .doc file
+*.doc
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

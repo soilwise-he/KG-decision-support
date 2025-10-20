@@ -4,7 +4,7 @@ This repository contains a single end-to-end Jupyter notebook (`KG_DS_system.ipy
 
 ## Notebook Highlights
 
-- Stream 30 m soil property rasters (pH, organic carbon, clay, sand, bulk density) and EuroCrops land-use from the EcoDataCube STAC API with graceful fallbacks to cached GeoTIFFs.
+- Stream 30m soil property rasters (pH, organic carbon, clay, sand, bulk density) and EuroCrops land-use from the EcoDataCube STAC API.
 - Parse SHKG triples (both the `soil_health_KG.ttl` graph and the JSON export in `soil_prop_thres.json`) to recover soil pH semantics, toxicity warnings, and crop requirements.
 - Classify soil health by mapping the KG-derived thresholds onto the gridded pH data (see figure below).
 - Quantify measurement uncertainty by combining STAC p16/p84 rasters with KG thresholds, producing confidence and uncertainty surfaces.
@@ -15,7 +15,7 @@ This repository contains a single end-to-end Jupyter notebook (`KG_DS_system.ipy
 
 ### 1. Stream Digital Soil Mapping Layers
 
-The notebook defines an `EcoDataCubeClient` for constructing STAC and direct S3 URLs, then extracts a buffered window around Wageningen. Rasterio, PyProj, and NumPy are used to harmonize bounds, handle nodata, and convert index rasters (for example pH * 10) into physical values. The same routines support 30 m and 10 m products for cross-scale checks.
+The notebook calls the EcoDataCube STAC API (maintained by OpenGeoHub) to retrieve Wageningen digital soil mapping layers for pH, texture, carbon, and crop cover.
 
 ### 2. Query the Soil Health Knowledge Graph
 
@@ -51,21 +51,47 @@ PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
 PREFIX qudt: <http://qudt.org/schema/qudt/>
 PREFIX sorelm: <http://sweetontology.net/relaMath/>
 
-SELECT DISTINCT ?crop ?cropLabel ?altLabel ?broader ?broaderLabel ?phValue ?phInterval
+SELECT ?crop ?cropLabel ?optimalValue ?optimalInterval ?tolerableInterval
 WHERE {
-  ?crop she:hasOptimalSoilpH ?phNode .
-  ?crop skos:prefLabel ?cropLabel .
-  OPTIONAL { ?crop skos:altLabel ?altLabel }
-  OPTIONAL { ?crop skos:broader ?broader . ?broader skos:prefLabel ?broaderLabel }
-  OPTIONAL { ?phNode qudt:numericValue ?phValue }
-  OPTIONAL { ?phNode sorelm:hasInterval ?phInterval }
+    ?crop a skos:Concept ;
+          skos:prefLabel ?cropLabel .
+    
+    # Optional: Optimal pH numeric value (100% yield)
+    OPTIONAL {
+        ?crop she:hasOptimalSoilpH ?optimal .
+        ?optimal qudt:numericValue ?optimalValue .
+    }
+    
+    # Optional: Optimal pH interval (95%+ yield)
+    OPTIONAL {
+        ?crop she:hasOptimalSoilpH ?optimalRange .
+        ?optimalRange sorelm:hasInterval ?optimalInterval .
+    }
+    
+    # Optional: Tolerable pH interval (80%+ yield)
+    OPTIONAL {
+        ?crop she:hasTolerableSoilpH ?tolerableRange .
+        ?tolerableRange sorelm:hasInterval ?tolerableInterval .
+    }
+    
+    # Filter: Only include crops with at least one pH requirement
+    FILTER (BOUND(?optimalValue) || BOUND(?optimalInterval) || BOUND(?tolerableInterval))
 }
 ORDER BY ?cropLabel
 ```
 
+For clarity, the query surfaces entries such as:
+
+- barley: optimal 6.8-7.5 (tolerable 5.7-7.5)
+- maize: optimal 6.5-6.8 (tolerable 6.5-6.8)
+- oat: optimal 5.7-7.5 (tolerable 5.0-7.5)
+- soybean: optimal 6.8-7.0 (tolerable 5.7-7.5)
+
+These examples illustrate how SHKG constraints feed directly into the spatial analytics so that crop suitability reflects the encoded agronomic expertise.
+
 ### 3. Classify Soil pH and Visualize Results
 
-The KG-derived thresholds initialize a labeled palette: Toxic (<= 4.5), Unhealthy, Intermediate (5.5-6.0), Healthy (6.0-7.0), Nutrient Deficit (> 7.0). These bins are applied across the pH raster to derive both a classified grid and summary statistics. The notebook plots raw pH alongside the semantic classes, adding legends, pixel counts, and textual summaries that explain what proportion of the area of interest sits in each KG-defined health band.
+The KG-derived thresholds initialize a labeled palette: Toxic (<= 4.5), Unhealthy (4.5-5.5), Intermediate (5.5-6.0), Healthy (6.0-7.0), Nutrient Deficit (> 7.0). These bins are applied across the pH raster to derive both a classified grid and summary statistics. The notebook plots raw pH alongside the semantic classes, adding legends, pixel counts, and textual summaries that explain what proportion of the area of interest sits in each KG-defined health band.
 
 ![Soil health classification map](img/soil_health_classification_ph.png)
 
@@ -84,14 +110,5 @@ A 20-band EU degradation raster is subset to the Wageningen window. Each band is
 EuroCrops land-use classes are aligned with KG crop entities, and the SPARQL outputs above are used to check whether observed or predicted crops sit inside their optimal pH intervals. Confusion matrices, coverage maps, and crop-specific summaries highlight which crops align with their recommended soil chemistry.
 
 ![Crop-specific soil pH suitability](img/crop-specific_soil_ph_suitability.png)
-
-## Key Artifacts
-
-- `KG_DS_system.ipynb`: The full decision-support workflow, runnable end to end.
-- `soil_health_KG.ttl`: Core SHKG triples in Turtle format.
-- `soil_prop_thres.json`: JSON export with embedded RDF snippets used for lightweight parsing.
-- `EcoDataCube/`: Local fallbacks for STAC downloads (for example Wageningen pH rasters).
-- `soil_degradation_dashboard/`: Multiband EU soil degradation indicators used for comparison.
-- `img/`: Ready-to-paste figures referenced throughout the README.
 
 Run the notebook from top to bottom to reproduce the outputs. The cells are organized so that KG parsing, raster access, classification, and crop reasoning can also be run independently if you only need part of the workflow.
